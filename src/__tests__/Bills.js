@@ -9,7 +9,9 @@ import { bills } from '../fixtures/bills.js';
 import Bills from '../containers/Bills.js';
 import { ROUTES_PATH } from '../constants/routes.js';
 import { localStorageMock } from '../__mocks__/localStorage.js';
-import mockStore from '../__mocks__/store.js';
+import mockStore from '../__mocks__/store';
+
+jest.mock('../app/Store.js', () => mockStore);
 
 import router from '../app/Router.js';
 describe('Given I am connected as an employee', () => {
@@ -120,8 +122,105 @@ describe('Given I am connected as an employee', () => {
         // Je simule le click sur l'icône
         await userEvent.click(icon);
       });
+      // J'espère que la modal à la classe show
+      expect(modal.classList.contains('show')).toBe(true);
       // J'espère que la fonction a été appelée
       expect(handleClickIconEye).toHaveBeenCalled();
+    });
+    /**
+     * ! Test for HTTP 404 Error
+     */
+    test('Then, i check for the HTTP 404 error', async () => {
+      // Je set le watch sur les bills du store mocké
+      jest.spyOn(mockStore, 'bills');
+      // Je définis le localStorage avec les données du mock
+      Object.defineProperty(window, 'localStorage', {
+        value: localStorageMock,
+      });
+      // Je définis le localStorage avec les données du mock
+      window.localStorage.setItem(
+        'user',
+        JSON.stringify({
+          type: 'Employee',
+        }),
+      );
+      // Je crée une div, où je lui set un id en tant que root et je le met dans le body
+      const root = document.createElement('div');
+      root.setAttribute('id', 'root');
+      document.body.appendChild(root);
+      // J'appelle le router
+      router();
+      // Je dis à Jest de mock une fois le store de façon à lui envoyer une 404
+      mockStore.bills.mockImplementationOnce(() => {
+        return {
+          list: () => {
+            return Promise.reject(new Error('Erreur 404'));
+          },
+        };
+      });
+      // Je fais une instance de Bills
+      const bills = new Bills({
+        document,
+        onNavigate,
+        store: mockStore,
+        localStorage,
+      });
+      // Je vais sur la page Bills
+      window.onNavigate(ROUTES_PATH.Bills);
+      // J'attends le prochain tick
+      await new Promise(process.nextTick);
+      // Je récupère l'élement avec le data-testid 'error-message'
+      const error = screen.getByTestId('error-message');
+      // J'espère que la chaîne de caractères "Erreur 404" matchera ce qui se trouve dans l'élement error
+      expect(/Erreur 404/.test(error.innerHTML)).toBe(true);
+    });
+    /***
+     * ! Test for HTTP 500 Error
+     */
+    test('Then, i check for the HTTP 500 error', async () => {
+      // Je set le watch sur les bills du store mocké
+      jest.spyOn(mockStore, 'bills');
+      // Je définis le localStorage avec les données du mock
+      Object.defineProperty(window, 'localStorage', {
+        value: localStorageMock,
+      });
+      // Je définis le localStorage avec les données du mock
+      window.localStorage.setItem(
+        'user',
+        JSON.stringify({
+          type: 'Employee',
+          email: 'a@a',
+        }),
+      );
+      // Je crée une div, où je lui set un id en tant que root et je le met dans le body
+      const root = document.createElement('div');
+      root.setAttribute('id', 'root');
+      document.body.appendChild(root);
+      // J'appelle le router
+      router();
+      // Je dis à Jest de mock une fois le store de façon à lui envoyer une 500
+      mockStore.bills.mockImplementationOnce(() => {
+        return {
+          list: () => {
+            return Promise.reject(new Error('Erreur 500'));
+          },
+        };
+      });
+      // Je crée une instance de Bills
+      const bills = new Bills({
+        document,
+        onNavigate,
+        store: mockStore,
+        localStorage,
+      });
+      // Je vais sur la page Bills
+      window.onNavigate(ROUTES_PATH.Bills);
+      // J'attends le prochain tick
+      await new Promise(process.nextTick);
+      // Je récupère l'élement avec le data-testid 'error-message'
+      const error = screen.getByTestId('error-message');
+      // J'espère que la chaîne de caractères "Erreur 500" matchera ce qui se trouve dans l'élement error
+      expect(/Erreur 500/.test(error.innerHTML)).toBe(true);
     });
   });
 });
